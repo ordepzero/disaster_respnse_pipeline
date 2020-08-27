@@ -3,20 +3,39 @@ import pandas as pd
 from sqlalchemy import create_engine
 
 def load_data(messages_filepath='disaster_messages.csv', categories_filepath='disaster_categories.csv'):
+    """
+    Load messages and categories from dataset
+    
+    Args:
+      message_filepath(string): the file path of messages.csv
+      categories_filepath(string): the file path of categories.csv
+      
+    Return:
+      df(Dataframe): merged dataframe of messages + categories
+    """
     messages = pd.read_csv(messages_filepath)
     categories = pd.read_csv(categories_filepath)
     return messages.merge(categories, left_on='id', right_on='id')
 
 
 def clean_data(df):
-    genre_dummies = pd.get_dummies(df['genre'])
-    categories = df['categories'].str.split(';',expand=True)
+    """
+    Clean up data:
+      1. Drop duplicates
+      2. Remove missing values
+      3. Clean categories 
+    Args: 
+      df(Dataframe): merged dataframe of messages + categories from load_data()
+
+    Return:
+      df(Dataframe): cleaned dataframe 
+    """
     
+    # spliting the columns name from values
+    categories = df['categories'].str.split(';',expand=True)
     row = map(lambda x: x.split('-')[0], categories.iloc[0])
 
-    # use this row to extract a list of new column names for categories.
-    # one way is to apply a lambda function that takes everything 
-    # up to the second to last character of each string with slicing
+    
     category_colnames = list(row)
     categories.columns = category_colnames
     
@@ -27,17 +46,31 @@ def clean_data(df):
         # convert column from string to numeric
         categories[column] = categories[column].astype(int)
     
+    # set value 2 equal 1
     categories.loc[categories['related'] == 2,'related'] = 1
     
+    # drop categorie column and join with the messages
     df = df.drop(['categories'], axis=1)
     df = df.join(categories)
 
+    # remove duplicates
     df = df.drop_duplicates()
     
     return df
 
 
 def save_data(df, database_filename='messages_categories.db',table_name='messages_categories'):
+    """
+    Save the clean dataset into SQLite database
+    
+    Args:
+        df(Dataframe): the cleaned dataframe
+        database_filename(string): the file path to save file .db
+    Return:
+        None
+
+    """
+    # drop table if exist
     dbpath = 'sqlite:///'+database_filename
     table = table_name
     engine = create_engine(dbpath)
@@ -48,6 +81,7 @@ def save_data(df, database_filename='messages_categories.db',table_name='message
     connection.commit()
     cursor.close()  
     
+    # create table
     engine = create_engine(dbpath)
     df.to_sql(table, engine, index=False)
 

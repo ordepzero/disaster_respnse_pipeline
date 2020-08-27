@@ -24,6 +24,16 @@ from sklearn.metrics import classification_report
 
 
 def load_data(database_filepath='messages_categories.db',table_name='messages_categories',column_name='message'):
+    """
+	Load database and get dataset
+	Args: 
+		database_filepath (str): file path of sqlite database
+	Return:
+		X (pandas dataframe): Features
+		y (pandas dataframe): Targets/ Labels
+        categories (list): List of categorical columns
+        :param databse_filepath:
+    """
     engine = create_engine('sqlite:///'+database_filepath)
     df = pd.read_sql(table_name,con=engine)
 
@@ -34,6 +44,15 @@ def load_data(database_filepath='messages_categories.db',table_name='messages_ca
 
 
 def tokenize(text):
+    """
+    Returns the reduced words to their root form
+    
+    Args:
+        text(string): message
+    Returns:
+        lemmed (list): list of reduced words to their root form
+    """
+    
     # normalize text and remove punctuation
     text = re.sub(r"[^a-zA-Z0-9]", " ", text.lower())
     
@@ -54,18 +73,54 @@ def tokenize(text):
 
 
 def build_model():
+    """
+    Returns the GridSearchCV model
+    
+    Args:
+        None
+    Returns:
+        cv: Grid search model object
+    """
+    
+    # define the step of pipeline
     pipeline = Pipeline([
-    ('vect',CountVectorizer(tokenizer=tokenize)),
+    ('vect',CountVectorizer(tokenizer=tokenize,ngram_range=(1,2),max_df=0.75)),
     ('tfidf', TfidfTransformer()),
     ('clf',MultiOutputClassifier(RandomForestClassifier(n_jobs=-1)))])
 
-    return pipeline
+    # define the parameters to fine tuning
+    parameters = {
+        'vect__max_features': (None,10000,30000)
+    }
+    
+    cv = GridSearchCV(pipeline, param_grid=parameters)
+    return cv
 
 def evaluate_model(model, X_test, Y_test, category_names):
+    """
+    Prints multi-output classification results
+    
+    Args:
+        model (pandas dataframe): the scikit-learn fitted model
+        X_text (pandas dataframe): The X test set
+        y_test (pandas dataframe): the y test classifications
+        category_names (list): the category names
+    Returns:
+        None
+    """
     y_pred = model.predict(X_test)
     print(classification_report(Y_test, y_pred, target_names=category_names))
 
 def save_model(model, model_filepath='random_forest.pkl'):
+    """
+    Dumps the model to given path 
+    
+    Args: 
+        model (estimator): the fitted model
+        model_filepath (str): filepath to save model
+    Return:
+        None
+	"""
     joblib.dump(model, model_filepath)
 
 

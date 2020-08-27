@@ -15,22 +15,30 @@ from sqlalchemy import create_engine
 app = Flask(__name__)
 
 def tokenize(text):
+    # normalize text and remove punctuation
+    text = re.sub(r"[^a-zA-Z0-9]", " ", text.lower())
+    
+    # tokenize text
     tokens = word_tokenize(text)
+    stop_words = stopwords.words("english")
+    words = [w for w in tokens if w not in stop_words]
+    
+    # Reduce words to their stems
+    stemmer = PorterStemmer()
+    stemmed = [stemmer.stem(w) for w in words]
+    
+    # Reduce words to their root form
     lemmatizer = WordNetLemmatizer()
-
-    clean_tokens = []
-    for tok in tokens:
-        clean_tok = lemmatizer.lemmatize(tok).lower().strip()
-        clean_tokens.append(clean_tok)
-
-    return clean_tokens
+    lemmed = [lemmatizer.lemmatize(w) for w in stemmed]
+    
+    return lemmed
 
 # load data
 engine = create_engine('sqlite:///../data/DisasterResponse.db')
 df = pd.read_sql_table('messages_categories', engine)
 
 # load model
-model = joblib.load("../models/classifier_rf.pkl")
+model = joblib.load("../models/random_forest.pkl")
 
 
 # index webpage displays cool visuals and receives user input text for model
@@ -93,7 +101,7 @@ def go():
 
 
 def main():
-    app.run(host='0.0.0.0', port=8080, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)
 
 
 if __name__ == '__main__':
